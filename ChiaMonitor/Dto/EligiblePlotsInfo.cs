@@ -7,6 +7,8 @@
         public int Proofs { get; set; }
         public double ResponseTime { get; set; } // seconds
         public string UnitOfTime { get; set; }
+        public string PlotKey { get; set; } // Ex. d414005123... 
+
 
     }
 }

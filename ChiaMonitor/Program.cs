@@ -31,8 +31,10 @@ namespace ChiaHelper
             public bool ShowInfo { get; set; }
             [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics")]
             public int StatsLength { get; set; }
-            [Option('r', "interval", Default = 30, HelpText = "Interval time to report (minutes)")]
+            [Option('r', "interval", Default = 30, HelpText = "Interval time to notify (minutes)")]
             public int IntervalNotifyMinutes { get; set; }
+            [Option('d', "digits", Default = 2, HelpText = "Digits of precision")]
+            public int DigitsOfPrecision { get; set; }
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -67,6 +69,7 @@ namespace ChiaHelper
                .WithNotParsed<Options>((errs) => HandleParseError(errs));
 
             EligiblePlotsStat rtStat = new EligiblePlotsStat(options.StatsLength);
+            ChiaLogExtension.DigitsOfPrecision = options.DigitsOfPrecision;
 
             var eventWaitHandle = new AutoResetEvent(false);
             var fileStream = InitFileStream(options.Logfile, eventWaitHandle);
@@ -76,7 +79,7 @@ namespace ChiaHelper
                 notifier = new LineNotify(options.Token);
             }
 
-            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.getVersion() + " by zaniasoft");
+            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion());
 
             Console.WriteLine("Notification : " + notifier.GetType().Name);
             Console.WriteLine("Including Harvester Info : " + (options.ShowInfo ? "YES" : "NO"));
@@ -94,7 +97,8 @@ namespace ChiaHelper
                     {
                         if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                         {
-                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + Math.Round(rtStat.FastestRT(), 1) + "/" + Math.Round(rtStat.AverageRT(), 1) + "/" + Math.Round(rtStat.WorstRT(), 1) + "s.");
+                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + 
+                                "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
                             rtStat.ResetTotalPlotsStats();
                             stopwatch.Restart();
                         }
@@ -114,7 +118,7 @@ namespace ChiaHelper
 
                                 if (options.ShowInfo)
                                 {
-                                    notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime + " " + eligibleInfo.UnitOfTime);
+                                    notifier.Notify("Plot Key : " + eligibleInfo.PlotKey + "\nEligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime);
                                 }
                             }
 
