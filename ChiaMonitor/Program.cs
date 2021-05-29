@@ -97,7 +97,7 @@ namespace ChiaHelper
                     {
                         if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                         {
-                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + 
+                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots +
                                 "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
                             rtStat.ResetTotalPlotsStats();
                             stopwatch.Restart();
@@ -118,7 +118,7 @@ namespace ChiaHelper
 
                                 if (options.ShowInfo)
                                 {
-                                    notifier.Notify("Plot Key : " + eligibleInfo.PlotKey + "\nEligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime);
+                                    notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime + " " + eligibleInfo.PlotKey);
                                 }
                             }
 
