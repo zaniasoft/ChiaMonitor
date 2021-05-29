@@ -11,9 +11,10 @@
 
         public static bool IsWarningMessage(string message)
         {
-            INotifyRule allRules = AddRules(new LogWarningRule(), new LogErrorRule(), new HarvesterLogRule());
+            INotifyRule warningRules = AddRules(new LogWarningRule(), new HarvesterLogRule());
+            INotifyRule errorRules = AddRules(new LogErrorRule(), new HarvesterLogRule());
 
-            return allRules.IsSatisfied(message);
+            return warningRules.IsSatisfied(message) || errorRules.IsSatisfied(message);
         }
 
         public static INotifyRule AddRules(params INotifyRule[] rules)
