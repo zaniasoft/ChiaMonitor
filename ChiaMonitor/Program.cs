@@ -29,9 +29,9 @@ namespace ChiaHelper
             public string Logfile { get; set; }
             [Option('i', "info", Default = false, HelpText = "Show info")]
             public bool ShowInfo { get; set; }
-            [Option('n', "num", Default = 100, HelpText = "Number of values to calculate statistics")]
+            [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics")]
             public int StatsLength { get; set; }
-            [Option('r', "interval", Default = 1, HelpText = "Interval time to report (minutes)")]
+            [Option('r', "interval", Default = 30, HelpText = "Interval time to report (minutes)")]
             public int IntervalNotifyMinutes { get; set; }
         }
 
@@ -60,7 +60,7 @@ namespace ChiaHelper
 
         static void Main(string[] args)
         {
-            var eachStart = Stopwatch.StartNew();
+            var stopwatch = Stopwatch.StartNew();
 
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
@@ -92,10 +92,11 @@ namespace ChiaHelper
                     line = sr.ReadLine();
                     if (line != null)
                     {
-                        if (eachStart.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
+                        if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                         {
-                            notifier.Notify("Avg RT : " + Math.Round(rtStat.AverageRT(), 1) + " | Worst RT : " + Math.Round(rtStat.WorstRT(), 1));
-                            eachStart.Restart();
+                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + Math.Round(rtStat.FastestRT(), 1) + "/" + Math.Round(rtStat.AverageRT(), 1) + "/" + Math.Round(rtStat.WorstRT(), 1) + "s.");
+                            rtStat.ResetTotalPlotsStats();
+                            stopwatch.Restart();
                         }
 
                         if (NotifyValidator.IsWarningMessage(line))
@@ -106,6 +107,7 @@ namespace ChiaHelper
                         if (NotifyValidator.IsInfoMessage(line))
                         {
                             EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
+
                             if (eligibleInfo.EligiblePlots > 0)
                             {
                                 rtStat.Enqueue(eligibleInfo);
