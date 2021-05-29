@@ -1,11 +1,11 @@
 ﻿using ChiaMonitor.Dto;
 using ChiaMonitor.Notifications;
+using ChiaMonitor.Rules;
+using ChiaMonitor.Utils;
 using CommandLine;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace ChiaHelper
@@ -13,6 +13,8 @@ namespace ChiaHelper
     class Program
     {
         const int ERROR_COMMAND_ARGS = 1;
+
+        const int EVENT_WAIT_HANDLE = 1000;
 
         static INotifier notifier = new StdConsole();
         static Options options = new Options();
@@ -25,6 +27,8 @@ namespace ChiaHelper
             public string Logfile { get; set; }
             [Option('i', "info", Default = false, HelpText = "Show info")]
             public bool ShowInfo { get; set; }
+            [Option('n', "num", Default = false, HelpText = "Number of values to calculate statistics")]
+            public bool StatsLength { get; set; }
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -78,49 +82,37 @@ namespace ChiaHelper
                     line = sr.ReadLine();
                     if (line != null)
                     {
-                        if (line.Contains("harvester"))
+                        if (NotifyValidator.IsWarningMessage(line))
                         {
-                            if (line.Contains(": WARNING") || line.Contains(": ERROR"))
+                            notifier.Notify(line.GetLogLevel(), line);
+                        }
+
+                        if (NotifyValidator.IsInfoMessage(line))
+                        {
+                            EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
+                            if (eligibleInfo.EligiblePlots > 0)
                             {
-                                notifier.Notify(LogLevel.Error, line);
-                            }
-
-                            string pattern = @"(\d+)\s+plots were eligible for farming.*Found (\d+) proofs.*Time:\s+(\S+)\s+(\S+)\s+Total\s+(\d+)\s+plots";
-                            Match m = new Regex(pattern, RegexOptions.IgnoreCase).Match(line);
-
-                            if (m.Success)
-                            {
-                                HarvesterInfo hInfo = new HarvesterInfo();
-                                hInfo.EligiblePlots = Convert.ToInt32(m.Groups[1].Value);
-                                hInfo.Proofs = Convert.ToInt32(m.Groups[2].Value);
-                                hInfo.ResponseTime = Math.Round((Double)Convert.ToDouble(m.Groups[3].Value), 1);
-                                hInfo.UnitOfTime = m.Groups[4].Value;
-                                hInfo.TotalPlots = Convert.ToInt32(m.Groups[5].Value);
-
-                                if (hInfo.EligiblePlots > 0)
+                                if (options.ShowInfo)
                                 {
-                                    if (options.ShowInfo)
-                                    {
-                                        notifier.Notify("Eligible : " + hInfo.EligiblePlots + "/" + hInfo.TotalPlots + " | RT : " + hInfo.ResponseTime + " " + hInfo.UnitOfTime);
-                                    }
-                                }
-
-                                if (hInfo.Proofs > 0)
-                                {
-                                    notifier.Notify("Found " + hInfo.Proofs + " proofs." + " Congrats !!");
+                                    notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime + " " + eligibleInfo.UnitOfTime);
                                 }
                             }
 
+                            if (eligibleInfo.Proofs > 0)
+                            {
+                                notifier.Notify("Found " + eligibleInfo.Proofs + " proofs." + " Congrats !!");
+                            }
                         }
                     }
                     else
                     {
-                        eventWaitHandle.WaitOne(1000);
+                        eventWaitHandle.WaitOne(EVENT_WAIT_HANDLE);
                     }
                 }
             }
-
+#pragma warning disable CS0162 // Unreachable code detected
             eventWaitHandle.Close();
+#pragma warning restore CS0162 // Unreachable code detected
         }
     }
 }
