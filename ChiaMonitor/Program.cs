@@ -1,10 +1,12 @@
 ﻿using ChiaMonitor.Dto;
 using ChiaMonitor.Notifications;
 using ChiaMonitor.Rules;
+using ChiaMonitor.Stats;
 using ChiaMonitor.Utils;
 using CommandLine;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 
@@ -27,8 +29,10 @@ namespace ChiaHelper
             public string Logfile { get; set; }
             [Option('i', "info", Default = false, HelpText = "Show info")]
             public bool ShowInfo { get; set; }
-            [Option('n', "num", Default = false, HelpText = "Number of values to calculate statistics")]
-            public bool StatsLength { get; set; }
+            [Option('n', "num", Default = 100, HelpText = "Number of values to calculate statistics")]
+            public int StatsLength { get; set; }
+            [Option('r', "interval", Default = 1, HelpText = "Interval time to report (minutes)")]
+            public int IntervalNotifyMinutes { get; set; }
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -56,9 +60,13 @@ namespace ChiaHelper
 
         static void Main(string[] args)
         {
+            var eachStart = Stopwatch.StartNew();
+
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
                .WithNotParsed<Options>((errs) => HandleParseError(errs));
+
+            EligiblePlotsStat rtStat = new EligiblePlotsStat(options.StatsLength);
 
             var eventWaitHandle = new AutoResetEvent(false);
             var fileStream = InitFileStream(options.Logfile, eventWaitHandle);
@@ -67,6 +75,8 @@ namespace ChiaHelper
             {
                 notifier = new LineNotify(options.Token);
             }
+
+            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.getVersion() + " by zaniasoft");
 
             Console.WriteLine("Notification : " + notifier.GetType().Name);
             Console.WriteLine("Including Harvester Info : " + (options.ShowInfo ? "YES" : "NO"));
@@ -82,6 +92,12 @@ namespace ChiaHelper
                     line = sr.ReadLine();
                     if (line != null)
                     {
+                        if (eachStart.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
+                        {
+                            notifier.Notify("Avg RT : " + Math.Round(rtStat.AverageRT(), 1) + " | Worst RT : " + Math.Round(rtStat.WorstRT(), 1));
+                            eachStart.Restart();
+                        }
+
                         if (NotifyValidator.IsWarningMessage(line))
                         {
                             notifier.Notify(line.GetLogLevel(), line);
@@ -92,6 +108,8 @@ namespace ChiaHelper
                             EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
                             if (eligibleInfo.EligiblePlots > 0)
                             {
+                                rtStat.Enqueue(eligibleInfo);
+
                                 if (options.ShowInfo)
                                 {
                                     notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime + " " + eligibleInfo.UnitOfTime);
