@@ -20,11 +20,6 @@ namespace ChiaMonitor.Notifications
             return !String.IsNullOrEmpty(Token);
         }
 
-        public void Notify(string message)
-        {
-            Notify(LogLevel.Information, message);
-        }
-
         public void Notify(LogLevel level, string message)
         {
             Console.WriteLine(level.ToString() + " : " + message);
