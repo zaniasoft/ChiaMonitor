@@ -110,7 +110,14 @@ namespace ChiaHelper
                         {
                             if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                             {
-                                double farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / (rtStat.TotalEligiblePlots + rtStat.TotalDelayPlots) * 100), 0);
+                                int total = rtStat.TotalEligiblePlots + rtStat.TotalDelayPlots;
+                                double farmPerformance = 0;
+
+                                if (total > 0)
+                                {
+                                    farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / total * 100), 0);
+                                }
+
                                 notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots +
                                     "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\nFarm Performance : " + farmPerformance + "%" +
                                     "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
