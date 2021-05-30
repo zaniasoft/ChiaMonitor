@@ -30,21 +30,21 @@ namespace ChiaMonitor
 
         public class Options
         {
-            [Option('t', "token", HelpText = "Line Notify Token (Get here : https://notify-bot.line.me/my/)")]
+            [Option('t', "token", HelpText = "Line Notify Token (Get token : https://notify-bot.line.me/my/).")]
             public string Token { get; set; }
-            [Option('l', "log", Default = "debug.log", HelpText = "Chia log file")]
+            [Option('l', "log", Default = "debug.log", HelpText = "Chia log file.")]
             public string Logfile { get; set; }
-            [Option('i', "info", Default = false, HelpText = "Show eligible plots info")]
+            [Option('i', "info", Default = false, HelpText = "Show eligible plots info.")]
             public bool ShowInfo { get; set; }
-            [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics")]
+            [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics.")]
             public int StatsLength { get; set; }
-            [Option('r', "interval", Default = 30, HelpText = "Interval time to notify (minutes)")]
+            [Option('r', "interval", Default = 30, HelpText = "Interval time to notify (minutes).")]
             public int IntervalNotifyMinutes { get; set; }
-            [Option('d', "digits", Default = 2, HelpText = "Digits of precision")]
+            [Option('d', "digits", Default = 2, HelpText = "Digits of precision.")]
             public int DigitsOfPrecision { get; set; }
-            [Option('w', "watchdog", Default = 1, HelpText = "Watchdog timer to check your farm (minutes)")]
+            [Option('w', "watchdog", Default = 1, HelpText = "Watchdog timer to check your farm (minutes).")]
             public int WatchgodTimerMinutes { get; set; }
-            [Option('s', "showall", Default = false, HelpText = "Show all debug log in console")]
+            [Option('s', "showall", Default = false, HelpText = "Show all debug log in console.")]
             public bool ShowAllLog { get; set; }
         }
 
