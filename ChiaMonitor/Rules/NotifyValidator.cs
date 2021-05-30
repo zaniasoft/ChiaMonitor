@@ -17,6 +17,13 @@
             return warningRules.IsSatisfied(message) || errorRules.IsSatisfied(message);
         }
 
+        public static bool IsFarmingMessage(string message)
+        {
+            INotifyRule farmingRules = AddRules(new EligiblePlotsRule(), new HarvesterLogRule());
+
+            return farmingRules.IsSatisfied(message);
+        }
+
         public static INotifyRule AddRules(params INotifyRule[] rules)
         {
             return new NotifyRulesCollection(rules);

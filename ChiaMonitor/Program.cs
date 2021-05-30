@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Timers;
 
 namespace ChiaHelper
 {
@@ -18,11 +19,15 @@ namespace ChiaHelper
         const int ERROR_STREAMREADER_READLINE = 2;
         const int ERROR_MAINLOOP = 3;
 
+        const int WATCHDOG_TIMER = 60000; // ms
+        const int EVENT_WAIT_HANDLE = 1000; // ms
 
-        const int EVENT_WAIT_HANDLE = 1000;
+        static bool LogIsAppendingFlag = false;
+        static bool FarmIsRunningFlag = false;
 
         static INotifier notifier = new StdConsole();
         static Options options = new Options();
+        private static System.Timers.Timer aTimer;
 
         public class Options
         {
@@ -63,8 +68,39 @@ namespace ChiaHelper
             return new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         }
 
+        private static void InitWatchdogTimer()
+        {
+            // Create a watchdog timer.
+            aTimer = new System.Timers.Timer(WATCHDOG_TIMER);
+            aTimer.Elapsed += OnTimedEvent;
+            aTimer.AutoReset = true;
+            aTimer.Enabled = true;
+        }
+
+        private static void OnTimedEvent(Object source, ElapsedEventArgs e)
+        {
+            bool logFlag = LogIsAppendingFlag;
+            bool farmFlag = FarmIsRunningFlag;
+
+            LogIsAppendingFlag = false;
+            FarmIsRunningFlag = false;
+
+            if (!logFlag)
+            {
+                Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}", e.SignalTime);
+                notifier.Notify("Chia debug log is not running, Please check that log_level: INFO has been already configured and restart Chia.");
+                return;
+            }
+            if (!farmFlag)
+            {
+                Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}", e.SignalTime);
+                notifier.Notify("Your farm is not running well, Please check that log_level: INFO has been already configured and restart Chia.");
+            }
+        }
+
         static void Main(string[] args)
         {
+            InitWatchdogTimer();
             var stopwatch = Stopwatch.StartNew();
 
             CommandLine.Parser.Default.ParseArguments<Options>(args)
@@ -108,6 +144,8 @@ namespace ChiaHelper
                     {
                         if (line != null)
                         {
+                            LogIsAppendingFlag = true;
+
                             if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                             {
                                 int total = rtStat.TotalEligiblePlots + rtStat.TotalDelayPlots;
@@ -123,6 +161,11 @@ namespace ChiaHelper
                                     "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
                                 rtStat.ResetTotalPlotsStats();
                                 stopwatch.Restart();
+                            }
+
+                            if (NotifyValidator.IsFarmingMessage(line))
+                            {
+                                FarmIsRunningFlag = true;
                             }
 
                             if (NotifyValidator.IsWarningMessage(line))
