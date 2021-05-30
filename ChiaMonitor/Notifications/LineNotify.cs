@@ -30,7 +30,7 @@ namespace ChiaMonitor.Notifications
             try
             {
                 var request = (HttpWebRequest)WebRequest.Create("https://notify-api.line.me/api/notify");
-                var postData = string.Format("message={0}", message);
+                var postData = string.Format("message={0}", System.Web.HttpUtility.UrlEncode(message));
                 var data = Encoding.UTF8.GetBytes(postData);
                 request.Method = "POST";
                 request.ContentType = "application/x-www-form-urlencoded";
