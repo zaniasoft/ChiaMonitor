@@ -11,7 +11,7 @@ using System.IO;
 using System.Threading;
 using System.Timers;
 
-namespace ChiaHelper
+namespace ChiaMonitor
 {
     class Program
     {
