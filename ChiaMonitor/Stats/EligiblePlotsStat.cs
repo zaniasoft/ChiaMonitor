@@ -28,17 +28,29 @@ namespace ChiaMonitor.Stats
 
         public double FastestRT()
         {
-            return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Min();
+            if (!EligiblePlotsInfoQueue.IsEmpty)
+            {
+                return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Min();
+            }
+            return 0;
         }
 
         public double AverageRT()
         {
-            return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Average();
+            if (!EligiblePlotsInfoQueue.IsEmpty)
+            {
+                return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Average();
+            }
+            return 0;
         }
 
         public double WorstRT()
         {
-            return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Max();
+            if (!EligiblePlotsInfoQueue.IsEmpty)
+            {
+                return EligiblePlotsInfoQueue.Select(x => x.ResponseTime).Max();
+            }
+            return 0;
         }
 
         public void Enqueue(EligiblePlotsInfo value)
