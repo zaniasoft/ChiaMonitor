@@ -36,14 +36,25 @@ namespace ChiaMonitor.Utils
 
             if (m.Success)
             {
-                info.EligiblePlots = Convert.ToInt32(m.Groups[1].Value);
+                if (Int32.TryParse(m.Groups[1].Value, out int eligiblePlots))
+                {
+                    info.EligiblePlots = eligiblePlots;
+                }
                 info.PlotKey = m.Groups[2].Value;
-                info.Proofs = Convert.ToInt32(m.Groups[3].Value);
-                info.ResponseTime = Convert.ToDouble(m.Groups[4].Value);
+                if (Int32.TryParse(m.Groups[3].Value, out int proofs))
+                {
+                    info.Proofs = proofs;
+                }
+                if (Double.TryParse(m.Groups[4].Value, out double responseTime))
+                {
+                    info.ResponseTime = responseTime;
+                }
                 info.UnitOfTime = m.Groups[5].Value;
-                info.TotalPlots = Convert.ToInt32(m.Groups[6].Value);
+                if (Int32.TryParse(m.Groups[6].Value, out int totalPlots))
+                {
+                    info.TotalPlots = totalPlots;
+                }
             }
-
             return info;
         }
 
