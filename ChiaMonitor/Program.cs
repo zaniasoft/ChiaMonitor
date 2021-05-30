@@ -34,7 +34,7 @@ namespace ChiaMonitor
             public string Token { get; set; }
             [Option('l', "log", Default = "debug.log", HelpText = "Chia log file")]
             public string Logfile { get; set; }
-            [Option('i', "info", Default = false, HelpText = "Show info")]
+            [Option('i', "info", Default = false, HelpText = "Show eligible plots info")]
             public bool ShowInfo { get; set; }
             [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics")]
             public int StatsLength { get; set; }
@@ -44,6 +44,8 @@ namespace ChiaMonitor
             public int DigitsOfPrecision { get; set; }
             [Option('w', "watchdog", Default = 1, HelpText = "Watchdog timer to check your farm (minutes)")]
             public int WatchgodTimerMinutes { get; set; }
+            [Option('s', "showall", Default = false, HelpText = "Show all debug log in console")]
+            public bool ShowAllLog { get; set; }
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -146,6 +148,11 @@ namespace ChiaMonitor
                         if (line != null)
                         {
                             LogIsAppendingFlag = true;
+
+                            if(options.ShowAllLog)
+                            {
+                                Console.WriteLine(line);
+                            }
 
                             if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                             {
