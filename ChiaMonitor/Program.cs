@@ -19,7 +19,6 @@ namespace ChiaHelper
         const int ERROR_STREAMREADER_READLINE = 2;
         const int ERROR_MAINLOOP = 3;
 
-        const int WATCHDOG_TIMER = 60000; // ms
         const int EVENT_WAIT_HANDLE = 1000; // ms
 
         static bool LogIsAppendingFlag = false;
@@ -43,6 +42,8 @@ namespace ChiaHelper
             public int IntervalNotifyMinutes { get; set; }
             [Option('d', "digits", Default = 2, HelpText = "Digits of precision")]
             public int DigitsOfPrecision { get; set; }
+            [Option('w', "watchdog", Default = 1, HelpText = "Watchdog timer to check your farm (minutes)")]
+            public int WatchgodTimerMinutes { get; set; }
         }
 
         private static void HandleParseError(IEnumerable<Error> errs)
@@ -68,10 +69,10 @@ namespace ChiaHelper
             return new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         }
 
-        private static void InitWatchdogTimer()
+        private static void InitWatchdogTimer(int minutes)
         {
             // Create a watchdog timer.
-            aTimer = new System.Timers.Timer(WATCHDOG_TIMER);
+            aTimer = new System.Timers.Timer(minutes * 60000);
             aTimer.Elapsed += OnTimedEvent;
             aTimer.AutoReset = true;
             aTimer.Enabled = true;
@@ -100,13 +101,13 @@ namespace ChiaHelper
 
         static void Main(string[] args)
         {
-            InitWatchdogTimer();
             var stopwatch = Stopwatch.StartNew();
 
             CommandLine.Parser.Default.ParseArguments<Options>(args)
                .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
                .WithNotParsed<Options>((errs) => HandleParseError(errs));
 
+            InitWatchdogTimer(options.WatchgodTimerMinutes);
             EligiblePlotsStat rtStat = new EligiblePlotsStat(options.StatsLength);
             ChiaLogExtension.DigitsOfPrecision = options.DigitsOfPrecision;
 
@@ -176,7 +177,6 @@ namespace ChiaHelper
                             if (NotifyValidator.IsInfoMessage(line))
                             {
                                 EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
-
                                 if (eligibleInfo.EligiblePlots > 0)
                                 {
                                     rtStat.Enqueue(eligibleInfo);
