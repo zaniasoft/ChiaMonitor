@@ -124,7 +124,7 @@ namespace ChiaHelper
 
                             if (eligibleInfo.Proofs > 0)
                             {
-                                notifier.Notify("Found " + eligibleInfo.Proofs + " proofs." + " Congrats !!");
+                                notifier.Notify("##### Found " + eligibleInfo.Proofs + " proofs." + " Congrats ! #####");
                             }
                         }
                     }

@@ -30,6 +30,7 @@ namespace ChiaMonitor.Utils
             EligiblePlotsInfo info = new EligiblePlotsInfo();
 
             // Ex. 2 plots were eligible for farming 1771d71848... Found 0 proofs. Time: 0.63919 s. Total 484 plots
+            //     2 plots were eligible for farming xxxxxxxxxx... Found 1 proofs. Time: 0.89684 s. Total 276 plots
             string pattern = @"(\d+)\s+plots were eligible for farming\s+(\S+)\s+Found (\d+) proofs.*Time:\s+(\S+)\s+(\S+)\s+Total\s+(\d+)\s+plots";
             Match m = new Regex(pattern, RegexOptions.IgnoreCase).Match(message);
 
