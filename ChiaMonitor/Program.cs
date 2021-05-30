@@ -15,6 +15,9 @@ namespace ChiaHelper
     class Program
     {
         const int ERROR_COMMAND_ARGS = 1;
+        const int ERROR_STREAMREADER_READLINE = 2;
+        const int ERROR_MAINLOOP = 3;
+
 
         const int EVENT_WAIT_HANDLE = 1000;
 
@@ -92,51 +95,79 @@ namespace ChiaHelper
 
                 while (true)
                 {
-                    line = sr.ReadLine();
-                    if (line != null)
+                    try
                     {
-                        if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
-                        {
-                            notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots + "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots +
-                                "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
-                            rtStat.ResetTotalPlotsStats();
-                            stopwatch.Restart();
-                        }
+                        line = sr.ReadLine();
+                    }
+                    catch (Exception ex)
+                    {
+                        ExitError(ex.ToString(), ERROR_STREAMREADER_READLINE);
+                    }
 
-                        if (NotifyValidator.IsWarningMessage(line))
+                    try
+                    {
+                        if (line != null)
                         {
-                            notifier.Notify(line.GetLogLevel(), line);
-                        }
-
-                        if (NotifyValidator.IsInfoMessage(line))
-                        {
-                            EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
-
-                            if (eligibleInfo.EligiblePlots > 0)
+                            if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
                             {
-                                rtStat.Enqueue(eligibleInfo);
+                                double farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / (rtStat.TotalEligiblePlots + rtStat.TotalDelayPlots) * 100), 0);
+                                notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots +
+                                    "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\nFarm Performance : " + farmPerformance + "%" +
+                                    "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
+                                rtStat.ResetTotalPlotsStats();
+                                stopwatch.Restart();
+                            }
 
-                                if (options.ShowInfo)
+                            if (NotifyValidator.IsWarningMessage(line))
+                            {
+                                notifier.Notify(line.GetLogLevel(), line);
+                            }
+
+                            if (NotifyValidator.IsInfoMessage(line))
+                            {
+                                EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
+
+                                if (eligibleInfo.EligiblePlots > 0)
                                 {
-                                    notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime + " " + eligibleInfo.PlotKey);
+                                    rtStat.Enqueue(eligibleInfo);
+
+                                    if (options.ShowInfo)
+                                    {
+                                        notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime + " " + eligibleInfo.PlotKey);
+                                    }
+                                }
+
+                                if (eligibleInfo.Proofs > 0)
+                                {
+                                    notifier.Notify("##### Found " + eligibleInfo.Proofs + " proofs." + " Congrats ! #####");
                                 }
                             }
-
-                            if (eligibleInfo.Proofs > 0)
-                            {
-                                notifier.Notify("##### Found " + eligibleInfo.Proofs + " proofs." + " Congrats ! #####");
-                            }
+                        }
+                        else
+                        {
+                            eventWaitHandle.WaitOne(EVENT_WAIT_HANDLE);
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        eventWaitHandle.WaitOne(EVENT_WAIT_HANDLE);
+                        ExitError(ex.ToString(), ERROR_MAINLOOP);
                     }
                 }
             }
 #pragma warning disable CS0162 // Unreachable code detected
             eventWaitHandle.Close();
 #pragma warning restore CS0162 // Unreachable code detected
+        }
+
+        private static void ExitError(string errorMsg, int errorCode)
+        {
+            Console.WriteLine("Error Code : " + errorCode);
+            Console.WriteLine("Error Msg  : " + errorMsg);
+
+            Console.WriteLine("\nPlease send this error to the developer to fix");
+            Console.Write("Please enter to exit..");
+            Console.ReadLine();
+            Environment.Exit(errorCode);
         }
     }
 }
