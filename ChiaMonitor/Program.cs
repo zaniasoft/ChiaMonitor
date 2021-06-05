@@ -1,13 +1,15 @@
-﻿using ChiaMonitor.Dto;
+﻿using ChiaMonitor.Configurations;
+using ChiaMonitor.Dto;
 using ChiaMonitor.Notifications;
 using ChiaMonitor.Rules;
 using ChiaMonitor.Stats;
 using ChiaMonitor.Utils;
-using CommandLine;
+using Microsoft.Extensions.Configuration;
+using Serilog;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Timers;
 
@@ -18,6 +20,7 @@ namespace ChiaMonitor
         const int ERROR_COMMAND_ARGS = 1;
         const int ERROR_STREAMREADER_READLINE = 2;
         const int ERROR_MAINLOOP = 3;
+        const int ERROR_LOG_NOTFOUND = 4;
 
         const int EVENT_WAIT_HANDLE = 1000; // ms
 
@@ -25,40 +28,14 @@ namespace ChiaMonitor
         static bool FarmIsRunningFlag = false;
 
         static INotifier notifier = new StdConsole();
-        static Options options = new Options();
         private static System.Timers.Timer aTimer;
 
-        public class Options
-        {
-            [Option('t', "token", HelpText = "Line Notify Token (Get token : https://notify-bot.line.me/my/).")]
-            public string Token { get; set; }
-            [Option('l', "log", Default = "debug.log", HelpText = "Chia log file.")]
-            public string Logfile { get; set; }
-            [Option('i', "info", Default = false, HelpText = "Show eligible plots info.")]
-            public bool ShowInfo { get; set; }
-            [Option('n', "num", Default = 1000, HelpText = "Number of values to calculate statistics.")]
-            public int StatsLength { get; set; }
-            [Option('r', "interval", Default = 30, HelpText = "Interval time to notify (minutes).")]
-            public int IntervalNotifyMinutes { get; set; }
-            [Option('d', "digits", Default = 2, HelpText = "Digits of precision.")]
-            public int DigitsOfPrecision { get; set; }
-            [Option('w', "watchdog", Default = 1, HelpText = "Watchdog timer to check your farm (minutes).")]
-            public int WatchgodTimerMinutes { get; set; }
-            [Option('s', "showall", Default = false, HelpText = "Show all debug log in console.")]
-            public bool ShowAllLog { get; set; }
-        }
+        static ConfigChia configChia = null;
+        static ConfigNotification configNotification = null;
+        static ConfigConsole configConsole = null;
 
-        private static void HandleParseError(IEnumerable<Error> errs)
-        {
-            Console.Write("Please enter to exit..");
-            Console.ReadLine();
-            Environment.Exit(ERROR_COMMAND_ARGS);
-        }
-
-        private static void RunOptionsAndReturnExitCode(Options opts)
-        {
-            options = opts;
-        }
+        static string debugLogPath;
+        static string plotterLogPath;
 
         private static FileStream InitFileStream(string file, EventWaitHandle ewh)
         {
@@ -90,47 +67,127 @@ namespace ChiaMonitor
 
             if (!logFlag)
             {
-                Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}", e.SignalTime);
                 notifier.Notify("Chia debug log is not running, Please check that log_level: INFO has been already configured and restart Chia.");
                 return;
             }
             if (!farmFlag)
             {
-                Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}", e.SignalTime);
                 notifier.Notify("Your farm is not running well, Please check that log_level: INFO has been already configured and restart Chia.");
             }
         }
 
-        static void Main(string[] args)
+        static private void AutoFindLog()
         {
-            var stopwatch = Stopwatch.StartNew();
-
-            CommandLine.Parser.Default.ParseArguments<Options>(args)
-               .WithParsed<Options>(opts => RunOptionsAndReturnExitCode(opts))
-               .WithNotParsed<Options>((errs) => HandleParseError(errs));
-
-            InitWatchdogTimer(options.WatchgodTimerMinutes);
-            EligiblePlotsStat rtStat = new EligiblePlotsStat(options.StatsLength);
-            ChiaLogExtension.DigitsOfPrecision = options.DigitsOfPrecision;
-
-            var eventWaitHandle = new AutoResetEvent(false);
-            var fileStream = InitFileStream(options.Logfile, eventWaitHandle);
-
-            if (!String.IsNullOrEmpty(options.Token))
+            // Auto find debug.log under .chia folder
+            Log.Information("Auto find debug.log");
+            string path = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)).FullName;
+            if (Environment.OSVersion.Version.Major >= 6)
             {
-                notifier = new LineNotify(options.Token);
+                path = Directory.GetParent(path).ToString();
+            }
+            string chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
+
+            if (String.IsNullOrEmpty(chia_path))
+            {
+                Log.Information("Auto find debug.log failed, Finding debug log from configuration");
+                debugLogPath = configChia.LogFile;
+                plotterLogPath = configChia.PlotterLogDirectory;
+            }
+            else
+            {
+                debugLogPath = Path.GetFullPath(Path.Combine(chia_path, @"mainnet\log\debug.log"));
+                plotterLogPath = Path.GetFullPath(Path.Combine(chia_path, @"mainnet\plotter\"));
+
+                // If can not find debug.log then use value from config.json
+                if (!File.Exists(debugLogPath))
+                {
+                    Log.Information("Auto find debug.log failed, Finding debug log from configuration");
+                    debugLogPath = configChia.LogFile;
+                }
+                /* if (!Directory.Exists(plotterLogPath))
+                {
+                    Log.Information("Auto find plotter directory failed, Finding debug log from configuration");
+                    plotterLogPath = configChia.PlotterLogDirectory;
+                } */
             }
 
-            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion());
+            // Final check debug log file and plotter directory
+            if (!File.Exists(debugLogPath))
+            {
+                ExitError("Can not find debug.log, Please check your config.json", ERROR_LOG_NOTFOUND);
+            }
 
-            Console.WriteLine("Notification : " + notifier.GetType().Name);
-            Console.WriteLine("Including Harvester Info : " + (options.ShowInfo ? "YES" : "NO"));
+            /* if (!Directory.Exists(plotterLogPath))
+             {
+                 ExitError("Can not find plotter directory, Please check your config.json", ERROR_LOG_NOTFOUND);
+             } */
+
+            //Log.Information("Found debug log and plotter folder");
+            Log.Information("Found debug log");
+        }
+
+        static void Main(string[] args)
+        {
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .WriteTo.Console()
+                // .WriteTo.File("logs/chiamonitor.txt", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+
+            Log.Information("Welcome to Chia Monitor v{0}", AppInfo.GetVersion());
+
+            var stopwatch = Stopwatch.StartNew();
+
+            Log.Information("Loading config.json");
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("config.json", optional: false);
+
+            try
+            {
+                IConfiguration config = builder.Build();
+                configChia = config.GetSection("Chia").Get<ConfigChia>();
+                configNotification = config.GetSection("Notification").Get<ConfigNotification>();
+                configConsole = config.GetSection("Console").Get<ConfigConsole>();
+            }
+            catch (Exception ex)
+            {
+                ExitError(ex.Message, ERROR_LOG_NOTFOUND);
+            }
+
+            // Auto find debug.log under .chia folder
+            AutoFindLog();
+
+            Log.Information("Initialize Watchdog");
+            InitWatchdogTimer(configNotification.WatchdogTimer);
+
+            EligiblePlotsStat rtStat = new EligiblePlotsStat(configNotification.StatsLength);
+
+            ChiaLogExtension.DigitsOfPrecision = configNotification.DigitsOfPrecision;
+            Log.Information("Digits Of Precision is {0}", ChiaLogExtension.DigitsOfPrecision);
+
+            var eventWaitHandle = new AutoResetEvent(false);
+            var fileStream = InitFileStream(debugLogPath, eventWaitHandle);
+
+            // Use LineNotify class if LineToken is not empty, 
+            if (!String.IsNullOrEmpty(configNotification.LineToken))
+            {
+                notifier = new LineNotify(configNotification.LineToken);
+            } else
+            {
+                Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
+            }
+
+            Log.Information("Notification : {0}", notifier.GetType().Name);
+            Log.Information("Show Passed filter plots : {0}", (configNotification.ShowEligiblePlot ? "YES" : "NO"));
+            Log.Information("Sending notification welcome message");
+            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion() + " " + Char.ConvertFromUtf32(0x10003D));
 
             using (var sr = new StreamReader(fileStream))
             {
                 var line = "";
                 sr.ReadToEnd();
-                Console.WriteLine("Running..");
+                Log.Information("Running..");
 
                 while (true)
                 {
@@ -149,24 +206,47 @@ namespace ChiaMonitor
                         {
                             LogIsAppendingFlag = true;
 
-                            if(options.ShowAllLog)
+                            if (configConsole.ShowAllDebugLog)
                             {
-                                Console.WriteLine(line);
+                                Log.Debug(line);
                             }
 
-                            if (stopwatch.Elapsed.TotalMinutes > options.IntervalNotifyMinutes)
+                            if (stopwatch.Elapsed.TotalMinutes > configNotification.NotifyInterval)
                             {
                                 int total = rtStat.TotalEligiblePlots + rtStat.TotalDelayPlots;
                                 double farmPerformance = 0;
+                                string farmPerformanceEmoji = "";
 
                                 if (total > 0)
                                 {
-                                    farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / total * 100), 0);
+                                    farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / total * 100), 2);
+                                    if(farmPerformance == 100)
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x100079);
+                                    } else if(farmPerformance >= 95)
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x100090);
+                                    }
+                                    else if (farmPerformance >= 90)
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x100092);
+                                    }
+                                    else if (farmPerformance >= 85)
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x10007B);
+                                    }
+                                    else if (farmPerformance >= 80)
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x10007C);
+                                    } else
+                                    {
+                                        farmPerformanceEmoji = Char.ConvertFromUtf32(0x10007E);
+                                    }
                                 }
 
-                                notifier.Notify("During the past " + options.IntervalNotifyMinutes + " mins.\nTotal Plots : " + rtStat.TotalPlots +
-                                    "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\nFarm Performance : " + farmPerformance + "%" +
-                                    "\n\nResponse Time in " + options.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
+                                notifier.Notify("During the past " + configNotification.NotifyInterval + " mins.\nTotal Plots : " + rtStat.TotalPlots +
+                                    "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\nFarm Performance : " + farmPerformance + "% " + farmPerformanceEmoji +
+                                    "\n\nResponse Time in " + configNotification.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
                                 rtStat.ResetTotalPlotsStats();
                                 stopwatch.Restart();
                             }
@@ -178,7 +258,7 @@ namespace ChiaMonitor
 
                             if (NotifyValidator.IsWarningMessage(line))
                             {
-                                notifier.Notify(line.GetLogLevel(), line);
+                                notifier.Notify(line.GetLogLevel(), line + Char.ConvertFromUtf32(0x10007C));
                             }
 
                             if (NotifyValidator.IsInfoMessage(line))
@@ -186,17 +266,48 @@ namespace ChiaMonitor
                                 EligiblePlotsInfo eligibleInfo = line.GetEligiblePlots();
                                 if (eligibleInfo.EligiblePlots > 0)
                                 {
+                                    string eligiblePlotMsg = "Passed : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime + " " + eligibleInfo.PlotKey;
                                     rtStat.Enqueue(eligibleInfo);
-
-                                    if (options.ShowInfo)
+                                    if (configNotification.ShowEligiblePlot)
                                     {
-                                        notifier.Notify("Eligible : " + eligibleInfo.EligiblePlots + "/" + eligibleInfo.TotalPlots + " | RT : " + eligibleInfo.ResponseTime.RoundToString() + " " + eligibleInfo.UnitOfTime + " " + eligibleInfo.PlotKey);
+                                        string emoji = "";
+                                        if (eligibleInfo.ResponseTime <= 1)
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x100079);
+                                        }
+                                        else if (eligibleInfo.ResponseTime <= 2)
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x100090);
+                                        }
+                                        else if (eligibleInfo.ResponseTime <= 3)
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x100092);
+                                        }
+                                        else if (eligibleInfo.ResponseTime <= 4)
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x10007B);
+                                        }
+                                        else if (eligibleInfo.ResponseTime <= 5)
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x10007C);
+                                        }
+                                        else
+                                        {
+                                            emoji = Char.ConvertFromUtf32(0x10007E);
+                                        }
+                                        notifier.Notify(eligiblePlotMsg + emoji);
+                                    }
+                                    else
+                                    {
+                                        Log.Information(eligiblePlotMsg);
                                     }
                                 }
 
                                 if (eligibleInfo.Proofs > 0)
                                 {
-                                    notifier.Notify("##### Found " + eligibleInfo.Proofs + " proofs." + " Congrats ! #####");
+                                    notifier.Notify("\n" + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) +
+"\n\nCongratulations.\nFound " + eligibleInfo.Proofs + " proofs." +
+"\n\n" + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A));
                                 }
                             }
                         }
@@ -218,12 +329,13 @@ namespace ChiaMonitor
 
         private static void ExitError(string errorMsg, int errorCode)
         {
-            Console.WriteLine("Error Code : " + errorCode);
-            Console.WriteLine("Error Msg  : " + errorMsg);
-
-            Console.WriteLine("\nPlease send this error to the developer to fix");
-            Console.Write("Please enter to exit..");
+            Log.Error("Error Code : {0}", errorCode);
+            Log.Error("Error Msg  : {0}", errorMsg);
+            Log.Error("Please send this error to the developer to fix");
+            Console.Write("\nPlease enter to exit..");
             Console.ReadLine();
+            Log.CloseAndFlush();
+
             Environment.Exit(errorCode);
         }
     }

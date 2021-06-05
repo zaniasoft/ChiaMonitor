@@ -1,5 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using ChiaMonitor.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace ChiaMonitor.Notifications
 {
@@ -7,7 +7,7 @@ namespace ChiaMonitor.Notifications
     {
         public void Notify(LogLevel level, string message)
         {
-            Console.WriteLine(level.ToString() + " : " + message);
+            LoggerUtil.WriteLog(level, message);
         }
     }
 }

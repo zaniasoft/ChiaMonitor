@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Serilog;
 using System;
 using System.IO;
 using System.Net;
@@ -9,6 +10,7 @@ namespace ChiaMonitor.Notifications
     public class LineNotify : INotifier
     {
         private string Token { get; set; }
+        private readonly INotifier StdConsole = new StdConsole();
 
         public LineNotify(string token)
         {
@@ -22,7 +24,7 @@ namespace ChiaMonitor.Notifications
 
         public void Notify(LogLevel level, string message)
         {
-            Console.WriteLine(level.ToString() + " : " + message);
+            StdConsole.Notify(message);
 
             if (!IsEnable())
                 return;
@@ -47,7 +49,10 @@ namespace ChiaMonitor.Notifications
 
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
+                Log.Error(e.Message);
+                if(e.Message.Contains("401")) {
+                    Log.Error("Wrong Line Token, Please check your LineToken in config.json");
+                }
             }
         }
     }

@@ -1,0 +1,18 @@
+{
+  "Chia": {
+    "LogFile": "",
+    "PlotterLogDirectory": ""
+  },
+  "Notification": {
+    "LineToken": "",
+    "ShowPassedFilterPlots": false,
+    "ShowPlottingStatus": true,
+    "NotifyInterval": 30,
+    "DigitsOfPrecision": 2,
+    "WatchdogTimer": 15,
+    "StatsLength": 1000
+  },
+  "Console": {
+    "ShowAllDebugLog": false
+  }
+}
