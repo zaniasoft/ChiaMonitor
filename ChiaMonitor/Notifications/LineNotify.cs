@@ -10,6 +10,8 @@ namespace ChiaMonitor.Notifications
     public class LineNotify : INotifier
     {
         private string Token { get; set; }
+        public string Title { get; set; }
+
         private readonly INotifier StdConsole = new StdConsole();
 
         public LineNotify(string token)
@@ -25,6 +27,11 @@ namespace ChiaMonitor.Notifications
         public void Notify(LogLevel level, string message)
         {
             StdConsole.Notify(message);
+
+            if (!String.IsNullOrEmpty(Title))
+            {
+                message = Title + "\n" + message;
+            }
 
             if (!IsEnable())
                 return;
@@ -50,10 +57,12 @@ namespace ChiaMonitor.Notifications
             catch (Exception e)
             {
                 Log.Error(e.Message);
-                if(e.Message.Contains("401")) {
+                if (e.Message.Contains("401"))
+                {
                     Log.Error("Wrong Line Token, Please check your LineToken in config.json");
                 }
             }
         }
+
     }
 }

@@ -90,7 +90,8 @@ namespace ChiaMonitor
                     path = Directory.GetParent(path).ToString();
                 }
                 chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
 
             }
@@ -181,14 +182,23 @@ namespace ChiaMonitor
             if (!String.IsNullOrEmpty(configNotification.LineToken))
             {
                 notifier = new LineNotify(configNotification.LineToken);
-            } else
+            }
+            else
             {
                 Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
             }
 
+            if (!String.IsNullOrEmpty(configNotification.Title))
+            {
+                Log.Information("Name : {0}", configNotification.Title);
+                notifier.Title = configNotification.Title;
+            }
+
+            Log.Information("Debug log : {0}", debugLogPath);
             Log.Information("Notification : {0}", notifier.GetType().Name);
             Log.Information("Show Passed filter plots : {0}", (configNotification.ShowEligiblePlot ? "YES" : "NO"));
             Log.Information("Sending notification welcome message");
+
             notifier.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion() + " " + Char.ConvertFromUtf32(0x10003D));
 
             using (var sr = new StreamReader(fileStream))
@@ -228,10 +238,11 @@ namespace ChiaMonitor
                                 if (total > 0)
                                 {
                                     farmPerformance = Math.Round(((double)rtStat.TotalEligiblePlots / total * 100), 2);
-                                    if(farmPerformance == 100)
+                                    if (farmPerformance == 100)
                                     {
                                         farmPerformanceEmoji = Char.ConvertFromUtf32(0x100079);
-                                    } else if(farmPerformance >= 95)
+                                    }
+                                    else if (farmPerformance >= 95)
                                     {
                                         farmPerformanceEmoji = Char.ConvertFromUtf32(0x100090);
                                     }
@@ -246,7 +257,8 @@ namespace ChiaMonitor
                                     else if (farmPerformance >= 80)
                                     {
                                         farmPerformanceEmoji = Char.ConvertFromUtf32(0x10007C);
-                                    } else
+                                    }
+                                    else
                                     {
                                         farmPerformanceEmoji = Char.ConvertFromUtf32(0x10007E);
                                     }
