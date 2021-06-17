@@ -80,12 +80,20 @@ namespace ChiaMonitor
         {
             // Auto find debug.log under .chia folder
             Log.Information("Auto find debug.log");
-            string path = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)).FullName;
-            if (Environment.OSVersion.Version.Major >= 6)
+            string chia_path = "";
+
+            try
             {
-                path = Directory.GetParent(path).ToString();
+                string path = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)).FullName;
+                if (Environment.OSVersion.Version.Major >= 6)
+                {
+                    path = Directory.GetParent(path).ToString();
+                }
+                chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
+            } catch (Exception ex)
+            {
+
             }
-            string chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
 
             if (String.IsNullOrEmpty(chia_path))
             {
