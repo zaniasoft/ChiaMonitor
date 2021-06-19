@@ -3,7 +3,7 @@ using System;
 
 namespace ChiaMonitor.Notifications
 {
-    interface INotifier
+    public interface INotifier
     {
         string Title { get; set; }
         void Notify(LogLevel level, string message);

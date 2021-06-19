@@ -9,10 +9,9 @@ namespace ChiaMonitor.Notifications
 {
     public class LineNotify : INotifier
     {
+        private const string LINE_NOTIFY_API = "https://notify-api.line.me/api/notify";
         private string Token { get; set; }
         public string Title { get; set; }
-
-        private readonly INotifier StdConsole = new StdConsole();
 
         public LineNotify(string token)
         {
@@ -26,8 +25,6 @@ namespace ChiaMonitor.Notifications
 
         public void Notify(LogLevel level, string message)
         {
-            StdConsole.Notify(message);
-
             if (!String.IsNullOrEmpty(Title))
             {
                 message = Title + "\n" + message;
@@ -38,7 +35,7 @@ namespace ChiaMonitor.Notifications
 
             try
             {
-                var request = (HttpWebRequest)WebRequest.Create("https://notify-api.line.me/api/notify");
+                var request = (HttpWebRequest)WebRequest.Create(LINE_NOTIFY_API);
                 var postData = string.Format("message={0}", System.Web.HttpUtility.UrlEncode(message));
                 var data = Encoding.UTF8.GetBytes(postData);
                 request.Method = "POST";

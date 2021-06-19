@@ -7,6 +7,7 @@ using ChiaMonitor.Utils;
 using Microsoft.Extensions.Configuration;
 using Serilog;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -27,7 +28,9 @@ namespace ChiaMonitor
         static bool LogIsAppendingFlag = false;
         static bool FarmIsRunningFlag = false;
 
-        static INotifier notifier = new StdConsole();
+        static readonly List<INotifier> notifiers = new List<INotifier>();
+        static NotifyManager notifyManager;
+
         private static System.Timers.Timer aTimer;
 
         static ConfigChia configChia = null;
@@ -67,12 +70,12 @@ namespace ChiaMonitor
 
             if (!logFlag)
             {
-                notifier.Notify("Chia debug log is not running, Please check that log_level: INFO has been already configured and restart Chia.");
+                notifyManager.Notify("Chia debug log is not running, Please check that log_level: INFO has been already configured and restart Chia.");
                 return;
             }
             if (!farmFlag)
             {
-                notifier.Notify("Your farm is not running well, Please check that log_level: INFO has been already configured and restart Chia.");
+                notifyManager.Notify("Your farm is not running well, Please check that log_level: INFO has been already configured and restart Chia.");
             }
         }
 
@@ -178,28 +181,44 @@ namespace ChiaMonitor
             var eventWaitHandle = new AutoResetEvent(false);
             var fileStream = InitFileStream(debugLogPath, eventWaitHandle);
 
-            // Use LineNotify class if LineToken is not empty, 
+            // Add default notifier (StdConsole)
+            notifiers.Add(new StdConsole());
+
+            // Add Line Notify if LineToken is not empty, 
             if (!String.IsNullOrEmpty(configNotification.LineToken))
             {
-                notifier = new LineNotify(configNotification.LineToken);
+                notifiers.Add(new LineNotify(configNotification.LineToken));
             }
             else
             {
                 Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
             }
 
+            // Add Discord Webhook if DiscordWebhook is not empty, 
+            if (!String.IsNullOrEmpty(configNotification.DiscordWebhook))
+            {
+                notifiers.Add(new DiscordWebhook(configNotification.DiscordWebhook));
+            }
+            else
+            {
+                Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
+            }
+
+            notifyManager = new NotifyManager(notifiers);
+
             if (!String.IsNullOrEmpty(configNotification.Title))
             {
                 Log.Information("Name : {0}", configNotification.Title);
-                notifier.Title = configNotification.Title;
+                notifyManager.Title = configNotification.Title;
             }
 
+            notifyManager.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion() + " " + Char.ConvertFromUtf32(0x10003D));
+
             Log.Information("Debug log : {0}", debugLogPath);
-            Log.Information("Notification : {0}", notifier.GetType().Name);
+            Log.Information("Notification : {0}", notifyManager.ListNotifiers());
             Log.Information("Show Passed filter plots : {0}", (configNotification.ShowEligiblePlot ? "YES" : "NO"));
             Log.Information("Sending notification welcome message");
 
-            notifier.Notify("Welcome to Chia Monitor v" + AppInfo.GetVersion() + " " + Char.ConvertFromUtf32(0x10003D));
 
             using (var sr = new StreamReader(fileStream))
             {
@@ -264,7 +283,7 @@ namespace ChiaMonitor
                                     }
                                 }
 
-                                notifier.Notify("During the past " + configNotification.NotifyInterval + " mins.\nTotal Plots : " + rtStat.TotalPlots +
+                                notifyManager.Notify("During the past " + configNotification.NotifyInterval + " mins.\nTotal Plots : " + rtStat.TotalPlots +
                                     "\nEligible/Delay plots : " + rtStat.TotalEligiblePlots + "/" + rtStat.TotalDelayPlots + "\nFarm Performance : " + farmPerformance + "% " + farmPerformanceEmoji +
                                     "\n\nResponse Time in " + configNotification.StatsLength + " latest data\nFastest/Avg/Worst : " + rtStat.FastestRT().RoundToString() + "/" + rtStat.AverageRT().RoundToString() + "/" + rtStat.WorstRT().RoundToString() + "s.");
                                 rtStat.ResetTotalPlotsStats();
@@ -278,7 +297,7 @@ namespace ChiaMonitor
 
                             if (NotifyValidator.IsWarningMessage(line))
                             {
-                                notifier.Notify(line.GetLogLevel(), line + Char.ConvertFromUtf32(0x10007C));
+                                notifyManager.Notify(line.GetLogLevel(), line + Char.ConvertFromUtf32(0x10007C));
                             }
 
                             if (NotifyValidator.IsInfoMessage(line))
@@ -315,7 +334,7 @@ namespace ChiaMonitor
                                         {
                                             emoji = Char.ConvertFromUtf32(0x10007E);
                                         }
-                                        notifier.Notify(eligiblePlotMsg + emoji);
+                                        notifyManager.Notify(eligiblePlotMsg + emoji);
                                     }
                                     else
                                     {
@@ -325,7 +344,7 @@ namespace ChiaMonitor
 
                                 if (eligibleInfo.Proofs > 0)
                                 {
-                                    notifier.Notify("\n" + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) +
+                                    notifyManager.Notify("\n" + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) + Char.ConvertFromUtf32(0x1F389) +
 "\n\nCongratulations.\nFound " + eligibleInfo.Proofs + " proofs." +
 "\n\n" + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A) + Char.ConvertFromUtf32(0x1F38A));
                                 }

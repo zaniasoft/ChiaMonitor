@@ -3,6 +3,7 @@
     public class ConfigNotification
     {
         public string LineToken { get; set; }
+        public string DiscordWebhook { get; set; }
         public string Title { get; set; }
         public bool ShowEligiblePlot { get; set; }
         public bool ShowPlottingStatus { get; set; }
