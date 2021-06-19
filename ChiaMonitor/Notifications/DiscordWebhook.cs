@@ -27,6 +27,8 @@ namespace ChiaMonitor.Notifications
 
         public void Notify(LogLevel level, string message)
         {
+            discord.Clear();
+
             if (!IsEnable())
                 return;
 
@@ -40,7 +42,6 @@ namespace ChiaMonitor.Notifications
             discord.Add("content", message);
 
             dWebClient.UploadValues(WebHookUrl, discord);
-
         }
 
         public void Dispose()
