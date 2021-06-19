@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,12 +34,19 @@ namespace ChiaMonitor.Notifications
 
         public void Notify(LogLevel level, string message)
         {
-            Array.ForEach(this.notifiers, notifier => notifier.Notify(level, message));
+            try
+            {
+                Array.ForEach(this.notifiers, notifier => notifier.Notify(level, message));
+            }
+            catch (Exception e)
+            {
+                Log.Error("NotifyManager Error : " + e.Message);
+            }
         }
 
         public void Notify(string message)
         {
-            Array.ForEach(this.notifiers, notifier => notifier.Notify(message));
+            Notify(LogLevel.Information, message);
         }
 
         public string ListNotifiers()

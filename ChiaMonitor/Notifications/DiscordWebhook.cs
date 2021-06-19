@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Serilog;
 using System;
 using System.Collections.Specialized;
 using System.Net;
@@ -41,7 +42,14 @@ namespace ChiaMonitor.Notifications
             discord.Add("avatar_url", ProfilePicture);
             discord.Add("content", message);
 
-            dWebClient.UploadValues(WebHookUrl, discord);
+            try
+            {
+                dWebClient.UploadValues(WebHookUrl, discord);
+            }
+            catch (Exception e)
+            {
+                Log.Error("Discord Webhook Error : " + e.Message);
+            }
         }
 
         public void Dispose()

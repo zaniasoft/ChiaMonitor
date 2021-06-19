@@ -53,7 +53,7 @@ namespace ChiaMonitor.Notifications
 
             catch (Exception e)
             {
-                Log.Error(e.Message);
+                Log.Error("Line Notify Error : " + e.Message);
                 if (e.Message.Contains("401"))
                 {
                     Log.Error("Wrong Line Token, Please check your LineToken in config.json");
