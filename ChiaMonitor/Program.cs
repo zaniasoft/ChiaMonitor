@@ -82,26 +82,29 @@ namespace ChiaMonitor
         static private void AutoFindLog()
         {
             // Auto find debug.log under .chia folder
-            Log.Information("Auto find debug.log");
             string chia_path = "";
 
-            try
+            if (String.IsNullOrEmpty(configChia.LogFile))
             {
-                string path = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)).FullName;
-                if (Environment.OSVersion.Version.Major >= 6)
+                Log.Information("Auto find debug.log");
+                try
                 {
-                    path = Directory.GetParent(path).ToString();
+                    string path = Directory.GetParent(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)).FullName;
+                    if (Environment.OSVersion.Version.Major >= 6)
+                    {
+                        path = Directory.GetParent(path).ToString();
+                    }
+                    chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
                 }
-                chia_path = Directory.GetDirectories(path).Where(s => s.EndsWith(".chia")).FirstOrDefault();
-            }
-            catch (Exception ex)
-            {
+                catch (Exception ex)
+                {
 
+                }
             }
 
             if (String.IsNullOrEmpty(chia_path))
             {
-                Log.Information("Auto find debug.log failed, Finding debug log from configuration");
+                Log.Information("Finding debug log from configuration");
                 debugLogPath = configChia.LogFile;
                 plotterLogPath = configChia.PlotterLogDirectory;
             }
@@ -218,7 +221,6 @@ namespace ChiaMonitor
             Log.Information("Notification : {0}", notifyManager.ListNotifiers());
             Log.Information("Show Passed filter plots : {0}", (configNotification.ShowEligiblePlot ? "YES" : "NO"));
             Log.Information("Sending notification welcome message");
-
 
             using (var sr = new StreamReader(fileStream))
             {
