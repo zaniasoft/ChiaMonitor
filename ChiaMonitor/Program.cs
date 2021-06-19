@@ -194,7 +194,7 @@ namespace ChiaMonitor
             }
             else
             {
-                Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
+                Log.Warning("Line Token is not set in config.json");
             }
 
             // Add Discord Webhook if DiscordWebhook is not empty, 
@@ -204,7 +204,7 @@ namespace ChiaMonitor
             }
             else
             {
-                Log.Warning("Line Token is not set in config.json, Use Console for notification instead of Line Notify");
+                Log.Warning("Discord Webhook is not set in config.json");
             }
 
             notifyManager = new NotifyManager(notifiers);
